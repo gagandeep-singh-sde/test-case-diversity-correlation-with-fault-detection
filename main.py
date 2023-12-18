@@ -2,6 +2,7 @@ import os
 import subprocess
 
 import pandas as pd
+import numpy as np
 
 
 def create_dc_report(state_machine_folder):
@@ -28,12 +29,12 @@ def create_dc_report(state_machine_folder):
         print(f"Error: TR_Report.csv not found in FSM_reports folder for {state_machine_folder}")
 
 
-def calculate_diversity(state_machine_path):
+def calculate_diversity(state_machine_path, data_representation, diversity_metric, aggregation_method):
     fsm_test_suites_path = os.path.join(state_machine_path, 'FSM_test_suites')
 
     # Check if 'FSM_test_suites' folder exists
     if os.path.exists(fsm_test_suites_path):
-        print(f"Found 'FSM_test_suites' folder in ========== {state_machine_path}")
+        print(f"Found 'FSM_test_suites' folder in {state_machine_path}")
 
         test_suite_files = []
         diversity_values = []
@@ -41,12 +42,18 @@ def calculate_diversity(state_machine_path):
         # Iterate over each txt file in 'FSM_test_suites' folder
         for txt_file in os.listdir(fsm_test_suites_path):
             if txt_file.endswith(".txt"):
+                print(f"Found TXT File: {txt_file}")
                 test_suite_files.append(txt_file)
                 # Process the txt file
                 # Command to run the JAR file using the Java Virtual Machine (JVM)
-                command = ['java', '-jar', jar_file, 'compare',
-                           f'{fsm_test_suites_path}/{txt_file}', 'EventSequence', '-m',
-                           'Nei', '-a', 'Summation', '-r', 'RawResults']
+                if aggregation_method is not None:
+                    command = ['java', '-jar', jar_file, 'compare',
+                               f'{fsm_test_suites_path}/{txt_file}', f'{data_representation}', '-m',
+                               f'{diversity_metric}', '-a', f'{aggregation_method}', '-r', 'RawResults']
+                else:
+                    command = ['java', '-jar', jar_file, 'compare',
+                               f'{fsm_test_suites_path}/{txt_file}', f'{data_representation}', '-m',
+                               f'{diversity_metric}', '-r', 'RawResults']
                 # Run the command
                 process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -55,13 +62,11 @@ def calculate_diversity(state_machine_path):
 
                 # Print the output and errors
                 output, error = process.communicate()
-                print("Action:", output.decode())
-                print("Result:", error.decode())
+                # print("Action:", output.decode())
+                # print("Result:", error.decode())
 
                 result = output.decode().splitlines()
                 diversity_value = result[-2].replace("[", "").replace("]", "")
-
-                print("DV:", diversity_value)
                 diversity_values.append(diversity_value)
 
                 # Check the return code to see if the process was successful
@@ -69,13 +74,13 @@ def calculate_diversity(state_machine_path):
                     print("JAR file executed successfully.")
                 else:
                     print(f"Error: JAR file execution failed with return code {return_code}.")
-                print(f"Found TXT File: {txt_file}")
 
         # Load the CSV file into a DataFrame
         csv_file_path = f'{state_machine_path}/DC_Report.csv'  # Replace with the actual path to your CSV file
         csv_df = pd.read_csv(csv_file_path)
-
-        diversity_info = {'Test suite file': test_suite_files, 'Diversity': diversity_values}
+        print(f"diversity_values {diversity_values}.")
+        diversity_info = {'Test suite file': test_suite_files,
+                          f'{data_representation}_{diversity_metric}_{aggregation_method}': diversity_values}
         diversity_df = pd.DataFrame(diversity_info)
 
         merged_df = pd.merge(csv_df, diversity_df, on='Test suite file', how='left')
@@ -94,6 +99,24 @@ def calculate_diversity(state_machine_path):
         print(f"Error: 'FSM_test_suites' folder not found in {state_machine_path}")
 
 
+def calculate_correlation(state_machine_path):
+    csv_file_path = f'{state_machine_path}/DC_Report.csv'  # Replace with the actual path to your CSV file
+    csv_df = pd.read_csv(csv_file_path)
+
+    columns_array = csv_df['Mutation score All_Mutants OracleOutput'].values
+    print(f"Processing State Machine Folder: {columns_array}")
+
+    #     # Save the updated DataFrame back to the CSV file
+    #     # merged_df.to_csv('DC_Report.csv', index=False)
+    #     try:
+    #         merged_df.to_csv(csv_file_path, index=False)
+    #         print(f"File '{csv_file_path}' updated successfully.")
+    #     except Exception as e:
+    #         print(f"Error: {e}")
+    # else:
+    #     print(f"Error: 'FSM_test_suites' folder not found in {state_machine_path}")
+
+
 def process_state_machines(root_folder):
     # Iterate over each folder in the specified root folder
     for state_machine_folder in os.listdir(root_folder):
@@ -104,8 +127,21 @@ def process_state_machines(root_folder):
             print(f"Processing State Machine Folder: {state_machine_folder}")
 
             # Call function to create DC_Report.csv for the current State Machine folder
-            create_dc_report(state_machine_path)
-            calculate_diversity(state_machine_path)
+            # create_dc_report(state_machine_path)
+
+            data_representations = ["EventSequence", "EventPairs", "StateSequence"]
+            diversity_metrics = ["Levenshtein", "ShannonIndex", "Hamming", "ShannonIndex", "Nei"]
+            aggregation_methods = ["AverageValue", "MaximumValue", "MedianValue", "MinimumValue"]
+            # for data_representation in data_representations:
+            #     for diversity_metric in diversity_metrics:
+            #         if diversity_metric == "ShannonIndex" or diversity_metric == "Nei":
+            #             for aggregation_method in aggregation_methods:
+            #                 calculate_diversity(state_machine_path, data_representation, diversity_metric,
+            #                                     aggregation_method)
+            #         else:
+            #             calculate_diversity(state_machine_path, data_representation, diversity_metric, None)
+
+            calculate_correlation(state_machine_path)
         break
 
 
