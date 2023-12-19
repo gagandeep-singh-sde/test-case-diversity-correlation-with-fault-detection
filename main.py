@@ -71,25 +71,23 @@ def calculate_diversity(state_machine_path, data_representation, diversity_metri
 
                 # Check the return code to see if the process was successful
                 if return_code == 0:
-                    print("JAR file executed successfully.")
+                    print(f"JAR file executed successfully - {data_representation}_{diversity_metric}_{aggregation_method} calculated.")
                 else:
                     print(f"Error: JAR file execution failed with return code {return_code}.")
 
         # Load the CSV file into a DataFrame
         csv_file_path = f'{state_machine_path}/DC_Report.csv'  # Replace with the actual path to your CSV file
         csv_df = pd.read_csv(csv_file_path)
-        print(f"diversity_values {diversity_values}.")
-        diversity_info = {'Test suite file': test_suite_files,
-                          f'{data_representation}_{diversity_metric}_{aggregation_method}': diversity_values}
+        if aggregation_method is not None:
+            diversity_info = {'Test suite file': test_suite_files,
+                              f'{data_representation}_{diversity_metric}_{aggregation_method}': diversity_values}
+        else:
+            diversity_info = {'Test suite file': test_suite_files,
+                              f'{data_representation}_{diversity_metric}': diversity_values}
         diversity_df = pd.DataFrame(diversity_info)
 
         merged_df = pd.merge(csv_df, diversity_df, on='Test suite file', how='left')
 
-        # Print the resulting DataFrame
-        print(merged_df)
-
-        # Save the updated DataFrame back to the CSV file
-        # merged_df.to_csv('DC_Report.csv', index=False)
         try:
             merged_df.to_csv(csv_file_path, index=False)
             print(f"File '{csv_file_path}' updated successfully.")
@@ -103,18 +101,16 @@ def calculate_correlation(state_machine_path):
     csv_file_path = f'{state_machine_path}/DC_Report.csv'  # Replace with the actual path to your CSV file
     csv_df = pd.read_csv(csv_file_path)
 
-    columns_array = csv_df['Mutation score All_Mutants OracleOutput'].values
-    print(f"Processing State Machine Folder: {columns_array}")
+    diversity_columns = csv_df.iloc[:, 8:50]
+    pearson_correlation_coefficients = diversity_columns.apply(lambda col: col.astype(float).corr(csv_df['Mutation score All_Mutants OracleOutput'].astype(float)))
+    csv_df.loc['Pearson Correlation Coefficient'] = ["Pearson Correlation Coefficient", None, None, None, None, None, None, None] + pearson_correlation_coefficients.tolist()
+    csv_df.to_csv('DC_Report.csv', index=False)
 
-    #     # Save the updated DataFrame back to the CSV file
-    #     # merged_df.to_csv('DC_Report.csv', index=False)
-    #     try:
-    #         merged_df.to_csv(csv_file_path, index=False)
-    #         print(f"File '{csv_file_path}' updated successfully.")
-    #     except Exception as e:
-    #         print(f"Error: {e}")
-    # else:
-    #     print(f"Error: 'FSM_test_suites' folder not found in {state_machine_path}")
+    try:
+        csv_df.to_csv(csv_file_path, index=False)
+        print(f"File '{csv_file_path}' updated successfully.")
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 def process_state_machines(root_folder):
@@ -127,19 +123,19 @@ def process_state_machines(root_folder):
             print(f"Processing State Machine Folder: {state_machine_folder}")
 
             # Call function to create DC_Report.csv for the current State Machine folder
-            # create_dc_report(state_machine_path)
+            create_dc_report(state_machine_path)
 
             data_representations = ["EventSequence", "EventPairs", "StateSequence"]
-            diversity_metrics = ["Levenshtein", "ShannonIndex", "Hamming", "ShannonIndex", "Nei"]
-            aggregation_methods = ["AverageValue", "MaximumValue", "MedianValue", "MinimumValue"]
-            # for data_representation in data_representations:
-            #     for diversity_metric in diversity_metrics:
-            #         if diversity_metric == "ShannonIndex" or diversity_metric == "Nei":
-            #             for aggregation_method in aggregation_methods:
-            #                 calculate_diversity(state_machine_path, data_representation, diversity_metric,
-            #                                     aggregation_method)
-            #         else:
-            #             calculate_diversity(state_machine_path, data_representation, diversity_metric, None)
+            diversity_metrics = ["Levenshtein", "SimpsonDiversity", "Hamming", "ShannonIndex", "Nei"]
+            aggregation_methods = ["AverageValue", "SquaredSummation", "Manhattan", "Euclidean"]
+            for data_representation in data_representations:
+                for diversity_metric in diversity_metrics:
+                    if diversity_metric != "ShannonIndex" and diversity_metric != "Nei":
+                        for aggregation_method in aggregation_methods:
+                            calculate_diversity(state_machine_path, data_representation, diversity_metric,
+                                                aggregation_method)
+                    else:
+                        calculate_diversity(state_machine_path, data_representation, diversity_metric, None)
 
             calculate_correlation(state_machine_path)
         break
