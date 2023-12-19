@@ -138,7 +138,6 @@ def process_state_machines(root_folder):
                         calculate_diversity(state_machine_path, data_representation, diversity_metric, None)
 
             calculate_correlation(state_machine_path)
-        break
 
 
 # Specify the root folder
