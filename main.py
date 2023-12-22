@@ -152,14 +152,14 @@ def process_state_machines(root_folder):
             data_representations = ["EventSequence", "EventStatePairs", "StateSequence"]
             diversity_metrics = ["Levenshtein", "SimpsonDiversity", "Hamming", "ShannonIndex", "Nei"]
             aggregation_methods = ["AverageValue", "SquaredSummation", "Manhattan", "Euclidean"]
-            # for data_representation in data_representations:
-            #     for diversity_metric in diversity_metrics:
-            #         if diversity_metric != "ShannonIndex" and diversity_metric != "Nei":
-            #             for aggregation_method in aggregation_methods:
-            #                 calculate_diversity(state_machine_path, data_representation, diversity_metric,
-            #                                     aggregation_method)
-            #         else:
-            #             calculate_diversity(state_machine_path, data_representation, diversity_metric, None)
+            for data_representation in data_representations:
+                for diversity_metric in diversity_metrics:
+                    if diversity_metric != "ShannonIndex" and diversity_metric != "Nei":
+                        for aggregation_method in aggregation_methods:
+                            calculate_diversity(state_machine_path, data_representation, diversity_metric,
+                                                aggregation_method)
+                    else:
+                        calculate_diversity(state_machine_path, data_representation, diversity_metric, None)
 
             normalize_data(state_machine_path)
             calculate_correlation(f'{state_machine_path}/DC_Report.csv')
